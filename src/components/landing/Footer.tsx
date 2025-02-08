@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
           {/* Company Info */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">MenuLingo</h3>
+            <h3 className="text-lg font-semibold">MenuQ</h3>
             <p className="text-sm text-muted-foreground max-w-xs">
               Making restaurant menus accessible to everyone through AI-powered
               translations.
@@ -83,7 +83,7 @@ export default function Footer() {
       <div className="border-t">
         <div className="mx-auto max-w-7xl px-6 py-4 md:flex md:items-center md:justify-between lg:px-8">
           <div className="text-center md:text-left text-sm text-muted-foreground">
-            © {new Date().getFullYear()} MenuLingo. All rights reserved.
+            © {new Date().getFullYear()} MenuQ. All rights reserved.
           </div>
           <div className="mt-4 flex justify-center space-x-6 md:mt-0">
             <a

@@ -9,6 +9,21 @@ import { MenuProvider } from "./context/MenuContext";
 import { AuthProvider } from "./context/AuthContext";
 
 function App() {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const isSupabaseConfigured = supabaseUrl && supabaseKey && supabaseUrl !== "https://your-project-url.supabase.co";
+
+  // If Supabase isn't configured, just show the landing page without auth
+  if (!isSupabaseConfigured) {
+    return (
+      <Suspense fallback={<p>Loading...</p>}>
+        <Routes>
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <AuthProvider>

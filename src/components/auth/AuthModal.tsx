@@ -16,7 +16,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Welcome to MenuLingo</DialogTitle>
+          <DialogTitle>Welcome to MenuQ</DialogTitle>
         </DialogHeader>
         <Tabs
           value={activeTab}

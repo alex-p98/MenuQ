@@ -58,7 +58,7 @@ const DashboardHeader = () => {
         <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-6 w-6" />
         </Button>
-        <div className="text-xl font-semibold">MenuLingo</div>
+        <div className="text-xl font-semibold">MenuQ</div>
       </div>
 
       {/* Right section with notifications and profile */}

@@ -17,7 +17,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="text-xl font-bold">
-              MenuLingo
+              MenuQ
             </Link>
           </div>
 
