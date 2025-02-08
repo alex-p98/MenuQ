@@ -1,113 +1,83 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Card } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
-import type { Menu as MenuType, MenuItem, Translation } from "@/types/menu";
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { Card } from '../components/ui/card';
 
-export default function Menu() {
-  const { menuId } = useParams();
-  const [menu, setMenu] = useState<MenuType | null>(null);
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [translations, setTranslations] = useState<Translation[]>([]);
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+interface MenuItem {
+  id?: number;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+}
+
+const MenuPage = () => {
+  const { menuId } = useParams<{ menuId: string }>();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuName, setMenuName] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [primaryColor, setPrimaryColor] = useState<string>('#ffffff');
 
   useEffect(() => {
+    if (!menuId) return;
+
     const fetchMenu = async () => {
-      if (!menuId) return;
-
+      // Fetch the menu details based on menuId
       const { data: menuData, error: menuError } = await supabase
-        .from("menus")
-        .select("*")
-        .eq("id", menuId)
+        .from('menus')
+        .select('id, name, primary_color')
+        .eq('id', menuId)
         .single();
-
-      if (menuError) {
-        console.error("Error fetching menu:", menuError);
+      if (menuError || !menuData) {
+        setLoading(false);
         return;
       }
+      setMenuName(menuData.name);
+      if (menuData.primary_color) {
+        setPrimaryColor(menuData.primary_color);
+      }
 
-      setMenu(menuData);
-
-      // Fetch menu items
+      // Fetch menu items using the menu id
       const { data: itemsData, error: itemsError } = await supabase
-        .from("menu_items")
-        .select("*")
-        .eq("menu_id", menuId);
-
-      if (itemsError) {
-        console.error("Error fetching menu items:", itemsError);
+        .from('menu_items')
+        .select('*')
+        .eq('menu_id', menuData.id);
+      if (itemsError || !itemsData) {
+        setLoading(false);
         return;
       }
-
-      setItems(itemsData);
-
-      // Fetch translations
-      const { data: translationsData, error: translationsError } =
-        await supabase
-          .from("translations")
-          .select("*")
-          .in(
-            "menu_item_id",
-            itemsData.map((item) => item.id),
-          );
-
-      if (translationsError) {
-        console.error("Error fetching translations:", translationsError);
-        return;
-      }
-
-      setTranslations(translationsData);
+      const formattedItems = itemsData.map((item: any) => ({
+        ...item,
+        price: parseFloat(item.price).toFixed(2)
+      }));
+      setMenuItems(formattedItems);
+      setLoading(false);
     };
 
     fetchMenu();
   }, [menuId]);
 
-  const getTranslation = (itemId: string, field: "name" | "description") => {
-    const translation = translations.find(
-      (t) => t.menu_item_id === itemId && t.language === selectedLanguage,
-    );
-    return translation
-      ? field === "name"
-        ? translation.translated_name
-        : translation.translated_description
-      : null;
-  };
-
-  const itemsByCategory = items.reduce(
-    (acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    },
-    {} as Record<string, MenuItem[]>,
-  );
-
-  if (!menu) return <div>Loading...</div>;
-
   return (
-    <div className="min-h-screen p-4 bg-background">
-      <h1 className="text-2xl font-bold mb-6 text-center">{menu.name}</h1>
-
-      {Object.entries(itemsByCategory).map(([category, categoryItems]) => (
-        <div key={category} className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">{category}</h2>
-          {categoryItems.map((item) => (
-            <Card key={item.id} className="mb-4 p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">
-                    {getTranslation(item.id, "name") || item.name}
-                  </h3>
-                  <p className="text-sm mt-1 text-muted-foreground">
-                    {getTranslation(item.id, "description") || item.description}
-                  </p>
-                </div>
-                <span className="font-medium">${item.price.toFixed(2)}</span>
-              </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start p-8">
+      <h1 className="text-4xl font-bold mb-6" style={{ color: primaryColor }}>{menuName}</h1>
+      {loading ? (
+        <p>Loading menu...</p>
+      ) : menuItems.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
+          {menuItems.map((item, index) => (
+            <Card key={index} className="p-4">
+              <h2 className="text-xl font-semibold">{item.name}</h2>
+              <p className="text-gray-700">{item.description}</p>
+              <p className="mt-2 font-bold">Price: ${item.price}</p>
+              <p className="mt-1 text-sm text-gray-500">{item.category}</p>
             </Card>
           ))}
         </div>
-      ))}
+      ) : (
+        <p>No menu items to display.</p>
+      )}
     </div>
   );
-}
+};
+
+export default MenuPage;
