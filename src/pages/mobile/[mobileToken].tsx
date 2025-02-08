@@ -2,6 +2,7 @@
 import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { Card } from '../../components/ui/card';
 
 interface MenuItem {
   id?: number;
@@ -17,14 +18,15 @@ const MobileMenuPage = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuName, setMenuName] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [primaryColor, setPrimaryColor] = useState<string>('#f3f4f6');
   
   useEffect(() => {
     if (!mobileToken) return;
     const fetchMenu = async () => {
-      // Fetch the menu based on mobile token
+      // Fetch the menu based on mobile token, including primary_color if available
       const { data: menuData, error: menuError } = await supabase
         .from('menus')
-        .select('id, name')
+        .select('id, name, primary_color')
         .eq('mobile_token', mobileToken)
         .single();
       if (menuError || !menuData) {
@@ -32,6 +34,9 @@ const MobileMenuPage = () => {
         return;
       }
       setMenuName(menuData.name);
+      if (menuData.primary_color) {
+        setPrimaryColor(menuData.primary_color);
+      }
       
       // Fetch menu items using the menu id
       const { data: items, error: itemsError } = await supabase
@@ -54,22 +59,24 @@ const MobileMenuPage = () => {
   }, [mobileToken]);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>{menuName}</h1>
-      {loading ? (
-        <p>Loading menu...</p>
-      ) : menuItems.length > 0 ? (
-        menuItems.map((item, index) => (
-          <div key={index} style={{ marginBottom: '20px', borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
-            <h3>{item.name}</h3>
-            <p>{item.description}</p>
-            <p>Price: ${item.price}</p>
-            <p>Category: {item.category}</p>
-          </div>
-        ))
-      ) : (
-        <p>No menu items found.</p>
-      )}
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <Card style={{ backgroundColor: primaryColor }} className="w-full max-w-md p-6">
+        <h1 className="text-2xl font-bold mb-4 text-center">{menuName}</h1>
+        {loading ? (
+          <p className="text-center">Loading menu...</p>
+        ) : menuItems.length > 0 ? (
+          menuItems.map((item, index) => (
+            <div key={index} className="border-b pb-2 mb-2">
+              <h3 className="font-semibold">{item.name || 'Unnamed Item'}</h3>
+              <p className="text-sm">{item.description}</p>
+              <p className="text-sm">Price: ${item.price}</p>
+              <p className="text-xs text-gray-500">{item.category}</p>
+            </div>
+          ))
+        ) : (
+          <p className="text-center">No menu items found.</p>
+        )}
+      </Card>
     </div>
   );
 };
