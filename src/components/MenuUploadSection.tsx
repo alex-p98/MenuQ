@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Plus } from "lucide-react";
+import { Upload, FileText, Plus, Globe2 } from "lucide-react";
 
 interface MenuUploadSectionProps {
   onFileUpload?: (file: File) => void;
@@ -120,6 +120,12 @@ export default function MenuUploadSection({
           </div>
         </TabsContent>
       </Tabs>
+      <div className="mt-6 border-t pt-6">
+        <Button variant="default" className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90">
+          <Globe2 className="w-4 h-4" />
+          Translate Menu
+        </Button>
+      </div>
     </Card>
   );
 }
