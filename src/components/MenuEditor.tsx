@@ -24,14 +24,18 @@ interface MenuEditorProps {
   primaryColor?: string;
 }
 
-const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor }: MenuEditorProps) => {
+const MenuEditor = ({
+  initialItems = [],
+  menuName = "Today's Menu",
+  primaryColor,
+}: MenuEditorProps) => {
   const { setMenuItems } = useMenu();
   const { toast } = useToast();
   const { user } = useAuth();
   const [items, setItems] = useState<MenuItem[]>(
     initialItems.length > 0
       ? initialItems
-      : [{ name: "", description: "", price: "", category: "" }]
+      : [{ name: "", description: "", price: "", category: "" }],
   );
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -56,7 +60,7 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
           toast({
             variant: "destructive",
             title: "Error fetching menu items",
-            description: menuItemsError.message
+            description: menuItemsError.message,
           });
         } else if (menuItems) {
           const fetchedItems = menuItems.map((item: any) => ({
@@ -64,7 +68,7 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
             name: item.name,
             description: item.description,
             price: `$${parseFloat(item.price).toFixed(2)}`,
-            category: item.category
+            category: item.category,
           }));
           setItems(fetchedItems);
           setMenuItems(fetchedItems);
@@ -80,24 +84,30 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
       ...item,
       price: isNaN(parseFloat(item.price.replace("$", "")))
         ? item.price
-        : `$${parseFloat(item.price.replace("$", "")).toFixed(2)}`
+        : `$${parseFloat(item.price.replace("$", "")).toFixed(2)}`,
     }));
     setMenuItems(previewItems);
   }, [items, setMenuItems]);
 
   const addItem = () => {
-    setItems([...items, { name: "", description: "", price: "", category: "" }]);
+    setItems([
+      ...items,
+      { name: "", description: "", price: "", category: "" },
+    ]);
   };
 
   const removeItem = async (index: number) => {
     const deletedItem = items[index];
-    if(deletedItem.id) {
-      const { error } = await supabase.from("menu_items").delete().eq("id", deletedItem.id);
-      if(error) {
+    if (deletedItem.id) {
+      const { error } = await supabase
+        .from("menu_items")
+        .delete()
+        .eq("id", deletedItem.id);
+      if (error) {
         toast({
           variant: "destructive",
           title: "Error deleting item",
-          description: error.message
+          description: error.message,
         });
         return;
       }
@@ -113,13 +123,16 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
 
   const handleSave = async () => {
     // Ensure at least one item has the required fields.
-    const validItems = items.filter((item) => item.name && item.price && item.category);
+    const validItems = items.filter(
+      (item) => item.name && item.price && item.category,
+    );
 
     if (validItems.length === 0) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please add at least one menu item with name, price and category."
+        description:
+          "Please add at least one menu item with name, price and category.",
       });
       return;
     }
@@ -129,112 +142,107 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
       name: item.name,
       description: item.description,
       price: parseFloat(item.price.replace("$", "")),
-      category: item.category
+      category: item.category,
     }));
 
     if (!user) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "User not authenticated."
+        description: "User not authenticated.",
       });
       return;
     }
 
-    // Check if a menu already exists for this user with the given name
-    const { data: existingMenu, error: existingMenuError } = await supabase
-      .from("menus")
-      .select("id")
-      .eq("restaurant_id", user.id)
-      .eq("name", menuName)
-      .single();
+    try {
+      // Generate a unique mobile token
+      const mobileToken = crypto.randomUUID();
 
-    let menuId;
-    if (existingMenuError || !existingMenu) {
-      // Create a new menu record
+      // Create a new menu record with the mobile token
       const { data: menuData, error: menuError } = await supabase
         .from("menus")
-        .insert({
-          name: menuName,
-          restaurant_id: user.id
-        })
-        .select("id")
+        .upsert(
+          {
+            name: menuName,
+            restaurant_id: user.id,
+            mobile_token: mobileToken,
+          },
+          {
+            onConflict: "restaurant_id,name",
+            ignoreDuplicates: false,
+          },
+        )
+        .select("id, mobile_token")
         .single();
 
-      if (menuError) {
-        toast({
-          variant: "destructive",
-          title: "Error creating menu",
-          description: menuError.message
-        });
-        return;
-      }
-      menuId = menuData.id;
-    } else {
-      menuId = existingMenu.id;
-      // Delete existing menu items so we can update them
+      if (menuError) throw menuError;
+      if (!menuData) throw new Error("Failed to create menu");
+
+      // Create default mobile styles
+      const { error: styleError } = await supabase
+        .from("mobile_view_styles")
+        .upsert(
+          {
+            menu_id: menuData.id,
+            background_color: "#ffffff",
+            text_color: "#000000",
+            font_size: 16,
+            line_height: 1.5,
+            padding: 16,
+            border_radius: 8,
+          },
+          {
+            onConflict: "menu_id",
+            ignoreDuplicates: false,
+          },
+        );
+
+      if (styleError) throw styleError;
+
+      // Delete existing menu items first
       const { error: deleteError } = await supabase
         .from("menu_items")
         .delete()
-        .eq("menu_id", menuId);
-      if (deleteError) {
-        toast({
-          variant: "destructive",
-          title: "Error updating menu items",
-          description: deleteError.message
-        });
-        return;
-      }
-    }
+        .eq("menu_id", menuData.id);
 
-    // Insert the menu items with the correct menu_id
-    const itemsToInsert = formattedItems.map((item) => ({
-      menu_id: menuId,
-      ...item
-    }));
+      if (deleteError) throw deleteError;
 
-    const { error: itemsError } = await supabase
-      .from("menu_items")
-      .insert(itemsToInsert);
-
-    if (itemsError) {
-      toast({
-        variant: "destructive",
-        title: "Error saving menu items",
-        description: itemsError.message
-      });
-      return;
-    }
-
-    // Update local context for display (adding back "$" for proper formatting)
-    setMenuItems(
-      itemsToInsert.map((item) => ({
+      // Insert the menu items with the menu_id
+      const itemsToInsert = formattedItems.map((item) => ({
+        menu_id: menuData.id,
         ...item,
-        price: `$${item.price.toFixed(2)}`
-      }))
-    );
+      }));
 
-    // Generate a unique mobile page token and update the menu record
-    const mobileToken = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9);
-    const { error: tokenError } = await supabase
-      .from("menus")
-      .update({ mobile_token: mobileToken })
-      .eq("id", menuId);
-    if (tokenError) {
+      const { error: itemsError } = await supabase
+        .from("menu_items")
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      // Update local context
+      setMenuItems(
+        itemsToInsert.map((item) => ({
+          ...item,
+          price: `${item.price.toFixed(2)}`,
+        })),
+      );
+
+      // Use the deployed URL for QR codes
+      const baseUrl = "https://quizzical-yalow1-njrmp.dev.tempolabs.ai";
+      const mobileMenuUrl = `${baseUrl}/m/${menuData.mobile_token}`;
+
+      toast({
+        title: "Success",
+        description: `Menu saved! Access it at: ${mobileMenuUrl}`,
+      });
+    } catch (error) {
+      console.error("Error saving menu:", error);
       toast({
         variant: "destructive",
-        title: "Error updating mobile page",
-        description: tokenError.message
+        title: "Error",
+        description: "Failed to save menu. Please try again.",
       });
-      return;
     }
-
-    const mobileMenuUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/mobile/${mobileToken}` : `/mobile/${mobileToken}`;
-
-    toast({
-      title: "Success",
-      description: `Saved ${itemsToInsert.length} menu items successfully! Mobile Menu URL: ${mobileMenuUrl}`
-    });
   };
 
   return (
@@ -245,7 +253,11 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
             <div key={index} className="p-4 border rounded-lg space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-medium">Menu Item {index + 1}</h3>
-                <Button variant="ghost" size="icon" onClick={async () => await removeItem(index)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => await removeItem(index)}
+                >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
               </div>
@@ -258,13 +270,17 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
                 <Input
                   placeholder="Category"
                   value={item.category}
-                  onChange={(e) => updateItem(index, "category", e.target.value)}
+                  onChange={(e) =>
+                    updateItem(index, "category", e.target.value)
+                  }
                 />
               </div>
               <Textarea
                 placeholder="Description"
                 value={item.description}
-                onChange={(e) => updateItem(index, "description", e.target.value)}
+                onChange={(e) =>
+                  updateItem(index, "description", e.target.value)
+                }
                 className="min-h-[80px]"
               />
               <Input
@@ -287,14 +303,22 @@ const MenuEditor = ({ initialItems = [], menuName = "Today's Menu", primaryColor
         </div>
       </Card>
       {/* Mobile Preview: Visible only on mobile devices, using the primaryColor for background if provided */}
-      <Card style={{ backgroundColor: primaryColor || '#f3f4f6' }} className="w-full p-4 mt-4 block md:hidden">
+      <Card
+        style={{ backgroundColor: primaryColor || "#f3f4f6" }}
+        className="w-full p-4 mt-4 block md:hidden"
+      >
         <h2 className="text-lg font-bold mb-2">Mobile Preview</h2>
         {loading ? (
           <p>Loading menu...</p>
-        ) : items && items.length > 0 && items.some(item => item.name || item.description || item.price || item.category) ? (
+        ) : items &&
+          items.length > 0 &&
+          items.some(
+            (item) =>
+              item.name || item.description || item.price || item.category,
+          ) ? (
           items.map((item, index) => (
             <div key={index} className="border-b pb-2 mb-2">
-              <h3 className="font-medium">{item.name || 'Unnamed Item'}</h3>
+              <h3 className="font-medium">{item.name || "Unnamed Item"}</h3>
               <p className="text-black">{item.description}</p>
               <p>{item.price}</p>
               <p className="text-sm text-gray-500">{item.category}</p>

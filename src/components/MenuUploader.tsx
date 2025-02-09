@@ -5,7 +5,7 @@ import { Progress } from "./ui/progress";
 import { Upload, X, FileText, Check } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useMenu } from "../context/MenuContext";
-import { extractTextFromPDF, parseMenuItems } from "../lib/pdf";
+import { parseMenuItems } from "../lib/pdf";
 import { useToast } from "./ui/use-toast";
 
 interface MenuUploaderProps {
@@ -18,7 +18,7 @@ interface MenuUploaderProps {
 
 const MenuUploader = ({
   onUpload = () => {},
-  acceptedFileTypes = [".pdf"], // Only accept PDFs for now
+  acceptedFileTypes = [".txt", ".doc", ".docx"], // Only accept text files
   maxFileSize = 5 * 1024 * 1024, // 5MB
   isUploading: externalIsUploading = false,
   uploadProgress: externalUploadProgress = 0,
@@ -72,25 +72,25 @@ const MenuUploader = ({
 
       toast({
         title: "File sent successfully",
-        description: "PDF has been sent to the integration.",
+        description: "File has been sent to the integration.",
       });
     } catch (error) {
       console.error("Webhook error:", error);
       toast({
         variant: "destructive",
         title: "Webhook Error",
-        description: "Failed to send PDF to integration.",
+        description: "Failed to send file to integration.",
       });
     }
   };
 
-  const processMenuPDF = async (file: File) => {
+  const processTextFile = async (file: File) => {
     try {
       setIsUploading(true);
       setUploadProgress(10);
 
-      // Extract text from PDF
-      const text = await extractTextFromPDF(file);
+      // Read text file
+      const text = await file.text();
       setUploadProgress(40);
 
       // Parse menu items using GPT
@@ -105,14 +105,15 @@ const MenuUploader = ({
 
       toast({
         title: "Menu uploaded successfully",
-        description: `Extracted ${menuItems.length} menu items from PDF.`,
+        description: `Extracted ${menuItems.length} menu items from file.`,
       });
     } catch (error) {
-      console.error("Error processing PDF:", error);
+      console.error("Error processing file:", error);
       toast({
         variant: "destructive",
         title: "Error processing menu",
-        description: "Failed to extract menu items from PDF. Please try again.",
+        description:
+          "Failed to extract menu items from file. Please try again.",
       });
     } finally {
       setIsUploading(false);
@@ -129,7 +130,6 @@ const MenuUploader = ({
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && validateFile(droppedFile)) {
       setFile(droppedFile);
-      // Remove automatic processing
       onUpload(droppedFile);
     }
   };
@@ -139,7 +139,6 @@ const MenuUploader = ({
     const selectedFile = e.target.files?.[0];
     if (selectedFile && validateFile(selectedFile)) {
       setFile(selectedFile);
-      // Remove automatic processing
       onUpload(selectedFile);
     }
   };
@@ -173,7 +172,7 @@ const MenuUploader = ({
             <p className="text-sm text-gray-500 mb-4 text-center">
               or click to browse your files
               <br />
-              Supported formats: {acceptedFileTypes.join(", ")}
+              Supports formats: {acceptedFileTypes.join(", ")}
             </p>
             <input
               type="file"
@@ -213,7 +212,7 @@ const MenuUploader = ({
             </div>
             <div className="flex justify-center">
               <Button
-                onClick={() => processMenuPDF(file)}
+                onClick={() => processTextFile(file)}
                 className="bg-primary hover:bg-primary/90"
               >
                 Analyze Menu

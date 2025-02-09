@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import DashboardHeader from "./DashboardHeader";
-import MenuUploader from "./MenuUploader";
+
 import TranslationPanel from "./TranslationPanel";
 import QRCodeGenerator from "./QRCodeGenerator";
 import MobilePreview from "./MobilePreview";
@@ -37,24 +37,13 @@ const Home = ({
             <Card className="p-6 bg-white">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="menu">Upload Menu</TabsTrigger>
+                  <TabsTrigger value="menu">Menu Editor</TabsTrigger>
                   <TabsTrigger value="translations">Translations</TabsTrigger>
                   <TabsTrigger value="qr">QR Code</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="menu">
-                  <Tabs defaultValue="upload">
-                    <TabsList className="w-full mb-6">
-                      <TabsTrigger value="upload">Upload Menu</TabsTrigger>
-                      <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="upload">
-                      <MenuUploader />
-                    </TabsContent>
-                    <TabsContent value="manual">
-                      <MenuEditor />
-                    </TabsContent>
-                  </Tabs>
+                  <MenuEditor />
                 </TabsContent>
 
                 <TabsContent value="translations">

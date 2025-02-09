@@ -7,61 +7,52 @@ import { Label } from "./ui/label";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Globe, Check, X } from "lucide-react";
-
-interface Language {
-  code: string;
-  name: string;
-  enabled: boolean;
-}
-
-interface TranslationItem {
-  original: string;
-  translated: string;
-  category: string;
-}
-
-interface TranslationPanelProps {
-  languages?: Language[];
-  translations?: TranslationItem[];
-  onLanguageToggle?: (code: string) => void;
-  onTranslationApprove?: (item: TranslationItem) => void;
-}
-
-const defaultLanguages: Language[] = [
-  { code: "es", name: "Spanish", enabled: true },
-  { code: "fr", name: "French", enabled: false },
-  { code: "de", name: "German", enabled: false },
-  { code: "it", name: "Italian", enabled: false },
-  { code: "zh", name: "Chinese", enabled: false },
-];
-
-const defaultTranslations: TranslationItem[] = [
-  {
-    original: "Grilled Chicken",
-    translated: "Pollo a la Parrilla",
-    category: "Main Course",
-  },
-  {
-    original: "Caesar Salad",
-    translated: "Ensalada César",
-    category: "Starters",
-  },
-  {
-    original: "Chocolate Cake",
-    translated: "Pastel de Chocolate",
-    category: "Desserts",
-  },
-];
+import { useToast } from "./ui/use-toast";
 
 const TranslationPanel = () => {
+  const [activeTab, setActiveTab] = useState("languages");
+  const { toast } = useToast();
   const {
     languages,
     toggleLanguage,
     menuItems,
     translations,
     setTranslations,
+    selectedLanguage,
+    setSelectedLanguage,
   } = useMenu();
-  const [activeTab, setActiveTab] = useState("languages");
+
+  const handleApproveTranslation = (
+    itemId: string,
+    text: string,
+    type: "name" | "description",
+  ) => {
+    const newTranslations = { ...translations };
+    if (!newTranslations[selectedLanguage]) {
+      newTranslations[selectedLanguage] = {};
+    }
+    newTranslations[selectedLanguage][`${itemId}_${type}`] = text;
+    setTranslations(newTranslations);
+    toast({
+      title: "Translation approved",
+      description: `Approved ${type} translation for ${selectedLanguage}`,
+    });
+  };
+
+  const handleRejectTranslation = (
+    itemId: string,
+    type: "name" | "description",
+  ) => {
+    const newTranslations = { ...translations };
+    if (newTranslations[selectedLanguage]) {
+      delete newTranslations[selectedLanguage][`${itemId}_${type}`];
+      setTranslations(newTranslations);
+      toast({
+        title: "Translation rejected",
+        description: `Rejected ${type} translation for ${selectedLanguage}`,
+      });
+    }
+  };
 
   return (
     <Card className="w-full max-w-[720px] h-[640px] bg-white p-6">
@@ -110,10 +101,38 @@ const TranslationPanel = () => {
                       {item.category}
                     </span>
                     <div className="flex gap-2">
-                      <Button size="icon" variant="ghost">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          handleApproveTranslation(
+                            item.id || index.toString(),
+                            item.name,
+                            "name",
+                          );
+                          handleApproveTranslation(
+                            item.id || index.toString(),
+                            item.description,
+                            "description",
+                          );
+                        }}
+                      >
                         <Check className="w-4 h-4 text-green-500" />
                       </Button>
-                      <Button size="icon" variant="ghost">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          handleRejectTranslation(
+                            item.id || index.toString(),
+                            "name",
+                          );
+                          handleRejectTranslation(
+                            item.id || index.toString(),
+                            "description",
+                          );
+                        }}
+                      >
                         <X className="w-4 h-4 text-red-500" />
                       </Button>
                     </div>
@@ -127,12 +146,14 @@ const TranslationPanel = () => {
                     <div>
                       <p className="text-sm font-medium">Translation</p>
                       <p>
-                        {translations[selectedLanguage]?.[item.name] ||
-                          "Not translated"}
+                        {translations[selectedLanguage]?.[
+                          `${item.id || index.toString()}_name`
+                        ] || item.name}
                       </p>
                       <p className="text-sm mt-2">
-                        {translations[selectedLanguage]?.[item.description] ||
-                          "Not translated"}
+                        {translations[selectedLanguage]?.[
+                          `${item.id || index.toString()}_description`
+                        ] || item.description}
                       </p>
                     </div>
                   </div>
