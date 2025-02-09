@@ -43,6 +43,7 @@ const MenuContext = createContext<MenuContextType | undefined>(undefined);
 
 export const MenuProvider = ({ children }: { children: React.ReactNode }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  console.log("MenuContext state updated:", menuItems); // Debug log
   const [languages, setLanguages] = useState<Language[]>([
     { code: "en", name: "English", enabled: true },
     { code: "es", name: "Spanish", enabled: false },

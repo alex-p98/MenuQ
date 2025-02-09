@@ -24,7 +24,20 @@ interface MobilePreviewProps {
 }
 
 const MobilePreview = () => {
-  const { menuItems, selectedLanguage, translations, mobileStyles } = useMenu();
+  const {
+    menuItems = [],
+    selectedLanguage = "en",
+    translations = {},
+    mobileStyles = {
+      backgroundColor: "#ffffff",
+      textColor: "#000000",
+      fontSize: 16,
+      lineHeight: 1.5,
+      padding: 16,
+      borderRadius: 8,
+    },
+  } = useMenu();
+  console.log("Menu Items in MobilePreview:", menuItems); // Debug log
 
   const getTranslatedText = (text: string) => {
     return translations[selectedLanguage]?.[text] || text;
@@ -75,42 +88,50 @@ const MobilePreview = () => {
 
       {/* Menu Items */}
       <div className="h-[calc(100%-144px)] overflow-y-auto p-4">
-        {Object.entries(
-          menuItems.reduce(
-            (acc, item) => {
-              if (!acc[item.category]) acc[item.category] = [];
-              acc[item.category].push(item);
-              return acc;
-            },
-            {} as Record<string, typeof menuItems>,
-          ),
-        ).map(([category, items]) => (
-          <div key={category} className="mb-6">
-            <h2 className="text-lg font-semibold mb-3">{category}</h2>
-            {items.map((item, index) => (
-              <Card
-                key={index}
-                className="mb-3"
-                style={{
-                  padding: `${mobileStyles.padding}px`,
-                  borderRadius: `${mobileStyles.borderRadius}px`,
-                  backgroundColor: mobileStyles.backgroundColor,
-                  color: mobileStyles.textColor,
-                }}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {item.description}
-                    </p>
-                  </div>
-                  <span className="font-medium">{item.price}</span>
-                </div>
-              </Card>
-            ))}
+        {menuItems.length === 0 ? (
+          <div className="text-center text-gray-500 mt-8">
+            <p>No menu items yet.</p>
+            <p className="text-sm">Upload a menu to see it here.</p>
           </div>
-        ))}
+        ) : (
+          Object.entries(
+            menuItems.reduce(
+              (acc, item) => {
+                const category = item.category || "Uncategorized";
+                if (!acc[category]) acc[category] = [];
+                acc[category].push(item);
+                return acc;
+              },
+              {} as Record<string, typeof menuItems>,
+            ),
+          ).map(([category, items]) => (
+            <div key={category} className="mb-6">
+              <h2 className="text-lg font-semibold mb-3">{category}</h2>
+              {items.map((item, index) => (
+                <Card
+                  key={index}
+                  className="mb-3"
+                  style={{
+                    padding: `${mobileStyles.padding}px`,
+                    borderRadius: `${mobileStyles.borderRadius}px`,
+                    backgroundColor: mobileStyles.backgroundColor,
+                    color: mobileStyles.textColor,
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium">{item.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {item.description}
+                      </p>
+                    </div>
+                    <span className="font-medium">{item.price}</span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Bottom Navigation */}

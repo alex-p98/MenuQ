@@ -4,6 +4,9 @@ import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
 import { Upload, X, FileText, Check } from "lucide-react";
 import { cn } from "../lib/utils";
+import { useMenu } from "../context/MenuContext";
+import { extractTextFromPDF, parseMenuItems } from "../lib/pdf";
+import { useToast } from "./ui/use-toast";
 
 interface MenuUploaderProps {
   onUpload?: (file: File) => void;
@@ -15,14 +18,18 @@ interface MenuUploaderProps {
 
 const MenuUploader = ({
   onUpload = () => {},
-  acceptedFileTypes = [".pdf", ".doc", ".docx", ".txt"],
+  acceptedFileTypes = [".pdf"], // Only accept PDFs for now
   maxFileSize = 5 * 1024 * 1024, // 5MB
-  isUploading = false,
-  uploadProgress = 0,
+  isUploading: externalIsUploading = false,
+  uploadProgress: externalUploadProgress = 0,
 }: MenuUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const { setMenuItems } = useMenu();
+  const { toast } = useToast();
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -48,23 +55,91 @@ const MenuUploader = ({
     return true;
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const sendToWebhook = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        "https://hook.us2.make.com/6iqsf4ckfrd4ho05e0hpsq5o3fuz1ddr",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) throw new Error("Failed to send to webhook");
+
+      toast({
+        title: "File sent successfully",
+        description: "PDF has been sent to the integration.",
+      });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      toast({
+        variant: "destructive",
+        title: "Webhook Error",
+        description: "Failed to send PDF to integration.",
+      });
+    }
+  };
+
+  const processMenuPDF = async (file: File) => {
+    try {
+      setIsUploading(true);
+      setUploadProgress(10);
+
+      // Extract text from PDF
+      const text = await extractTextFromPDF(file);
+      setUploadProgress(40);
+
+      // Parse menu items using GPT
+      const menuItems = await parseMenuItems(text);
+      setUploadProgress(80);
+
+      // Update menu items in context
+      console.log("Parsed menu items:", menuItems); // Debug log
+      setMenuItems(menuItems);
+      await sendToWebhook(file);
+      setUploadProgress(100);
+
+      toast({
+        title: "Menu uploaded successfully",
+        description: `Extracted ${menuItems.length} menu items from PDF.`,
+      });
+    } catch (error) {
+      console.error("Error processing PDF:", error);
+      toast({
+        variant: "destructive",
+        title: "Error processing menu",
+        description: "Failed to extract menu items from PDF. Please try again.",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     setError("");
 
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && validateFile(droppedFile)) {
       setFile(droppedFile);
+      // Remove automatic processing
       onUpload(droppedFile);
     }
   };
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
     const selectedFile = e.target.files?.[0];
     if (selectedFile && validateFile(selectedFile)) {
       setFile(selectedFile);
+      // Remove automatic processing
       onUpload(selectedFile);
     }
   };
@@ -73,6 +148,9 @@ const MenuUploader = ({
     setFile(null);
     setError("");
   };
+
+  const currentIsUploading = isUploading || externalIsUploading;
+  const currentProgress = isUploading ? uploadProgress : externalUploadProgress;
 
   return (
     <Card className="w-[480px] h-[320px] bg-white p-6">
@@ -86,7 +164,7 @@ const MenuUploader = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {!file && !isUploading && (
+        {!file && !currentIsUploading && (
           <>
             <Upload className="w-12 h-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-semibold mb-2">
@@ -112,8 +190,8 @@ const MenuUploader = ({
           </>
         )}
 
-        {file && !isUploading && (
-          <div className="w-full">
+        {file && !currentIsUploading && (
+          <div className="w-full space-y-4">
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-3">
                 <FileText className="w-6 h-6 text-gray-500" />
@@ -133,24 +211,32 @@ const MenuUploader = ({
                 <X className="w-5 h-5" />
               </Button>
             </div>
+            <div className="flex justify-center">
+              <Button
+                onClick={() => processMenuPDF(file)}
+                className="bg-primary hover:bg-primary/90"
+              >
+                Analyze Menu
+              </Button>
+            </div>
           </div>
         )}
 
-        {isUploading && (
+        {currentIsUploading && (
           <div className="w-full space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <FileText className="w-6 h-6 text-primary" />
                 <div>
-                  <p className="text-sm font-medium">Uploading menu...</p>
-                  <p className="text-xs text-gray-500">{uploadProgress}%</p>
+                  <p className="text-sm font-medium">Processing menu...</p>
+                  <p className="text-xs text-gray-500">{currentProgress}%</p>
                 </div>
               </div>
-              {uploadProgress === 100 && (
+              {currentProgress === 100 && (
                 <Check className="w-5 h-5 text-green-500" />
               )}
             </div>
-            <Progress value={uploadProgress} className="w-full" />
+            <Progress value={currentProgress} className="w-full" />
           </div>
         )}
 

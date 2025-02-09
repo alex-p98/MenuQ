@@ -11,7 +11,10 @@ import { AuthProvider } from "./context/AuthContext";
 function App() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const isSupabaseConfigured = supabaseUrl && supabaseKey && supabaseUrl !== "https://your-project-url.supabase.co";
+  const isSupabaseConfigured =
+    supabaseUrl &&
+    supabaseKey &&
+    supabaseUrl !== "https://your-project-url.supabase.co";
 
   // If Supabase isn't configured, just show the landing page without auth
   if (!isSupabaseConfigured) {
@@ -28,12 +31,14 @@ function App() {
     <Suspense fallback={<p>Loading...</p>}>
       <AuthProvider>
         <MenuProvider>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/dashboard" element={<Home />} />
-            <Route path="/menu/:menuId" element={<Menu />} />
-          </Routes>
-          {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+          <div>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Home />} />
+              <Route path="/menu/:menuId" element={<Menu />} />
+            </Routes>
+            {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+          </div>
         </MenuProvider>
       </AuthProvider>
     </Suspense>

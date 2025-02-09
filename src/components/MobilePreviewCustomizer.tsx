@@ -7,15 +7,20 @@ import { Palette, Type, Layout, Image } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Slider } from "./ui/slider";
 import { useMenu } from "../context/MenuContext";
+import { useToast } from "./ui/use-toast";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 
 export default function MobilePreviewCustomizer() {
   const { mobileStyles, setMobileStyles } = useMenu();
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   return (
-    <Card className="w-[300px] h-full bg-white p-4">
+    <Card className="w-[300px] h-full bg-white p-4 flex flex-col">
       <h3 className="font-semibold mb-4">Customize Mobile View</h3>
 
-      <Tabs defaultValue="colors" className="w-full">
+      <Tabs defaultValue="colors" className="w-full flex-1 overflow-auto">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="colors">
             <Palette className="h-4 w-4" />
@@ -162,6 +167,76 @@ export default function MobilePreviewCustomizer() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <div className="mt-6 pt-6 border-t flex-shrink-0">
+        <Button
+          className="w-full bg-primary hover:bg-primary/90"
+          onClick={async () => {
+            if (!user) {
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "You must be logged in to save customizations.",
+              });
+              return;
+            }
+
+            try {
+              const { data: existingStyle, error: fetchError } = await supabase
+                .from("mobile_view_styles")
+                .select("id")
+                .eq("restaurant_id", user.id)
+                .single();
+
+              if (fetchError && fetchError.code !== "PGRST116") {
+                throw fetchError;
+              }
+
+              const styleData = {
+                restaurant_id: user.id,
+                primary_color: mobileStyles.primaryColor,
+                background_color: mobileStyles.backgroundColor,
+                text_color: mobileStyles.textColor,
+                font_size: mobileStyles.fontSize,
+                line_height: mobileStyles.lineHeight,
+                padding: mobileStyles.padding,
+                border_radius: mobileStyles.borderRadius,
+                header_image: mobileStyles.headerImage,
+              };
+
+              let saveError;
+              if (existingStyle) {
+                const { error } = await supabase
+                  .from("mobile_view_styles")
+                  .update(styleData)
+                  .eq("id", existingStyle.id);
+                saveError = error;
+              } else {
+                const { error } = await supabase
+                  .from("mobile_view_styles")
+                  .insert([styleData]);
+                saveError = error;
+              }
+
+              if (saveError) throw saveError;
+
+              toast({
+                title: "Settings saved",
+                description: "Your mobile view customizations have been saved.",
+              });
+            } catch (error) {
+              console.error("Error saving mobile styles:", error);
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to save customizations. Please try again.",
+              });
+            }
+          }}
+        >
+          Save Changes
+        </Button>
+      </div>
     </Card>
   );
 }
